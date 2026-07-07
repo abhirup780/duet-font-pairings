@@ -384,12 +384,6 @@ function render() {
 
 /* ---------- header stats ---------- */
 function renderStats() {
-  const families = new Set();
-  PAIRINGS.forEach((p) => { families.add(p.h); families.add(p.b); });
-  document.getElementById("heroStats").innerHTML = `
-    <div class="stat"><span class="stat-num">${PAIRINGS.length}</span><span class="stat-label">curated pairings</span></div>
-    <div class="stat"><span class="stat-num">${families.size}</span><span class="stat-label">typefaces</span></div>
-    <div class="stat"><span class="stat-num">100%</span><span class="stat-label">free &amp; open source</span></div>`;
   document.getElementById("topbarCount").textContent = `${PAIRINGS.length} pairings`;
 }
 
