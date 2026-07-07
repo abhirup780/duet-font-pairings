@@ -319,6 +319,7 @@ function cardHtml(p, idx) {
         <span class="spec"><span class="spec-label">Text</span> ${p.b} · 400</span>
       </div>
       <div class="card-actions">
+        <button class="action-preview" data-preview="${idx}">Full preview ⤢</button>
         <a class="action-link" href="${specimenUrl(p.h)}" target="_blank" rel="noopener" title="Open ${p.h} on Google Fonts">${p.h}&nbsp;↗</a>
         <a class="action-link" href="${specimenUrl(p.b)}" target="_blank" rel="noopener" title="Open ${p.b} on Google Fonts">${p.b}&nbsp;↗</a>
         <button class="action-copy" data-copy="${idx}">Copy CSS</button>
@@ -437,6 +438,11 @@ function copyTextFallback(text) {
 }
 
 grid.addEventListener("click", async (e) => {
+  const previewBtn = e.target.closest("[data-preview]");
+  if (previewBtn) {
+    openPreview(parseInt(previewBtn.dataset.preview, 10));
+    return;
+  }
   const btn = e.target.closest("[data-copy]");
   if (!btn) return;
   const p = PAIRINGS[parseInt(btn.dataset.copy, 10)];
@@ -473,6 +479,129 @@ function scrollToGrid() {
   const y = toolbar.getBoundingClientRect().top + window.scrollY - 8;
   if (window.scrollY > y) window.scrollTo({ top: y, behavior: "smooth" });
 }
+
+/* ---------- full-screen preview ---------- */
+const FILLER_PARAGRAPHS = [
+  "The first draft rarely looks like the final version. What starts as a rough idea gets rewritten, restructured and trimmed until only the essential parts remain — the sentence that earns its place, the paragraph that moves the reader forward instead of holding them still.",
+  "Good editing is mostly subtraction. Every unnecessary word is a small tax on the reader's attention, and the best writers pay it gladly so no one else has to. What's left, when it works, reads like it took no effort at all — which is usually a sign that it took the most.",
+  "None of this happens by accident. It is the result of hundreds of small decisions, made and remade, by people who care more about the reader on the other side of the page than about being clever. That's the part that doesn't show up in the byline, but it's the part that matters most.",
+];
+const PULLQUOTE = "The best type pairings don't ask to be noticed — they just make the reading easier.";
+
+const previewOverlay = document.getElementById("previewOverlay");
+const previewScroll = document.getElementById("previewScroll");
+const previewCopyBtn = document.getElementById("previewCopy");
+let previewIdx = null;
+
+function previewArticleHtml(p) {
+  const t = TEMPLATES[p.use] || TEMPLATES.Brand;
+  const hw = renderWeight(p.h, p.hw);
+  const isScript = SCRIPT_FAMILIES.has(p.h);
+  const boost = SIZE_BOOST[p.h] || 1;
+  const hFont = `'${p.h.replace(/'/g, "\\'")}', ${fallbackFor(p.h)}`;
+  const bFont = `'${p.b.replace(/'/g, "\\'")}', ${fallbackFor(p.b)}`;
+  const hSize = (3.2 * boost).toFixed(2);
+  const cta = t.cta ? `<span class="mag-cta" style="font-family:${bFont}">${t.cta}</span>` : "";
+  return `
+  <article class="mag-page">
+    <p class="mag-kicker" style="font-family:${bFont}">${t.k}</p>
+    <h1 class="mag-headline${isScript ? " is-script" : ""}"
+        style="font-family:${hFont};font-weight:${hw};font-size:${hSize}rem">${t.h}</h1>
+    <p class="mag-deck" style="font-family:${bFont}">${t.d}</p>
+    <div class="mag-byline" style="font-family:${bFont}">
+      <span>${t.m}</span>
+      ${cta}
+    </div>
+    <div class="mag-rule"></div>
+    <div class="mag-body" style="font-family:${bFont}">
+      <p class="mag-dropcap">${t.b}</p>
+      <p>${FILLER_PARAGRAPHS[0]}</p>
+      <blockquote class="mag-pullquote" style="font-family:${hFont}">${PULLQUOTE}</blockquote>
+      <p>${FILLER_PARAGRAPHS[1]}</p>
+      <p>${FILLER_PARAGRAPHS[2]}</p>
+    </div>
+    <footer class="mag-footer">
+      <div class="mag-specs">
+        <span class="spec"><span class="spec-label">Display</span> ${p.h} · ${hw}</span>
+        <span class="spec"><span class="spec-label">Text</span> ${p.b} · 400</span>
+      </div>
+      <div class="mag-links">
+        <a class="action-link" href="${specimenUrl(p.h)}" target="_blank" rel="noopener">${p.h}&nbsp;↗</a>
+        <a class="action-link" href="${specimenUrl(p.b)}" target="_blank" rel="noopener">${p.b}&nbsp;↗</a>
+      </div>
+    </footer>
+  </article>`;
+}
+
+function openPreview(idx) {
+  const p = PAIRINGS[idx];
+  if (!p) return;
+  previewIdx = idx;
+  ensureFontsLoaded([p]);
+  previewScroll.innerHTML = previewArticleHtml(p);
+  document.getElementById("previewNum").textContent = `№ ${String(idx + 1).padStart(3, "0")}`;
+  document.getElementById("previewNames").textContent = `${p.h} × ${p.b}`;
+  document.getElementById("previewChip").textContent = CATEGORIES[p.c];
+  previewOverlay.hidden = false;
+  document.body.classList.add("no-scroll");
+  previewScroll.scrollTop = 0;
+}
+
+function closePreview() {
+  previewOverlay.hidden = true;
+  document.body.classList.remove("no-scroll");
+  previewIdx = null;
+}
+
+function stepPreview(dir) {
+  if (previewIdx === null) return;
+  let next = (previewIdx + dir + PAIRINGS.length) % PAIRINGS.length;
+  openPreview(next);
+}
+
+function goToRandomPairing() {
+  const idx = Math.floor(Math.random() * PAIRINGS.length);
+  state.q = "";
+  state.cat = "all";
+  document.getElementById("searchInput").value = "";
+  state.page = Math.floor(idx / PAGE_SIZE) + 1;
+  render();
+  openPreview(idx);
+}
+
+document.getElementById("randomBtn").addEventListener("click", goToRandomPairing);
+document.getElementById("previewRandom").addEventListener("click", goToRandomPairing);
+document.getElementById("previewClose").addEventListener("click", closePreview);
+document.getElementById("previewPrev").addEventListener("click", () => stepPreview(-1));
+document.getElementById("previewNext").addEventListener("click", () => stepPreview(1));
+
+previewCopyBtn.addEventListener("click", async () => {
+  if (previewIdx === null) return;
+  try {
+    await copyText(buildCss(PAIRINGS[previewIdx]));
+    previewCopyBtn.textContent = "Copied ✓";
+    previewCopyBtn.classList.add("is-copied");
+    setTimeout(() => {
+      previewCopyBtn.textContent = "Copy CSS";
+      previewCopyBtn.classList.remove("is-copied");
+    }, 1600);
+  } catch {
+    previewCopyBtn.textContent = "Copy failed";
+    setTimeout(() => (previewCopyBtn.textContent = "Copy CSS"), 1600);
+  }
+});
+
+previewOverlay.addEventListener("click", (e) => {
+  if (e.target === previewOverlay) closePreview();
+});
+
+document.addEventListener("keydown", (e) => {
+  if (previewOverlay.hidden) return;
+  if (e.key === "Escape") closePreview();
+  else if (e.key === "ArrowRight") stepPreview(1);
+  else if (e.key === "ArrowLeft") stepPreview(-1);
+  else if (e.key.toLowerCase() === "r") goToRandomPairing();
+});
 
 /* ---------- theme ---------- */
 const themeToggle = document.getElementById("themeToggle");
