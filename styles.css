@@ -551,6 +551,7 @@ body.no-scroll { overflow: hidden; }
   transition: all 0.18s ease;
 }
 .preview-btn:hover { border-color: var(--accent); color: var(--accent); }
+.preview-dice { padding: 0; }
 .preview-copy.is-copied { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 .preview-close { font-size: 14px; }
 
